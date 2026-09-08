@@ -41,7 +41,7 @@ def fixer(y, ma):
     y_out = y.copy()
     for i in np.arange(len(spikes)):
         if spikes[i] != 0:
-            w = np.arange(max(0, i-ma), min(len(y), i+1+ma))  # Ensure indices are within bounds
+            w = np.arange(max(0, i-ma), min(len(spikes), i+1+ma))  # Clamp to len(spikes) == len(y)-1 (np.diff) so spikes[w] stays in bounds
             we = w[spikes[w] == 0] if len(w) > 0 else []
             if len(we) > 0:
                 y_out[i] = np.mean(y[we])
@@ -58,13 +58,18 @@ def baseline_als(y, lam, p, niter=100):
         w = p * (y > z) + (1-p) * (y < z)
     return z
 
-def full_analysis2(intensity, x_range, l=10000000, p=0.05, w=30, pol=2, distance=40, nb_of_max=3):
+def full_analysis2(intensity, x_range, l=10000000, p=0.05, w=30, pol=2, distance=40, nb_of_max=3, ma=5):
     mix_spectrum = intensity.copy()
 
     # Create mask for filtering
     mask = x_range > 1000
     mix_spectrum = mix_spectrum[mask]
     x_range_filtered = x_range[mask]
+
+    # Despike before baselining: cosmic-ray spikes would otherwise drag the
+    # AsLS baseline and can be picked up as peaks (Whitaker & Hayes 2018)
+    if len(mix_spectrum) > 2:
+        mix_spectrum = fixer(mix_spectrum, ma)
 
     estimated_baselined = baseline_als(mix_spectrum, l, p)
     baselined_spectrum = mix_spectrum - estimated_baselined
@@ -101,7 +106,10 @@ def full_analysis2(intensity, x_range, l=10000000, p=0.05, w=30, pol=2, distance
 
 def parse_two_column_txt(filepath):
     """
-    Parses a text file with two columns separated by a tab into two numpy arrays.
+    Parses a text file with two numeric columns into two numpy arrays.
+
+    The delimiter is detected automatically: tabs, commas, semicolons and runs
+    of whitespace are all accepted. Columns beyond the first two are ignored.
     """
     column1_data = []
     column2_data = []
@@ -109,7 +117,7 @@ def parse_two_column_txt(filepath):
     try:
         with open(filepath, 'r') as f:
             for line in f:
-                parts = line.strip().split('\t')
+                parts = line.strip().replace('\t', ' ').replace(',', ' ').replace(';', ' ').split()
                 if len(parts) >= 2:
                     try:
                         column1_data.append(float(parts[0]))
@@ -168,13 +176,13 @@ def plot_spectrum_analysis(filepath):
             peak_intensities[i] = peak_height
 
             # Assign peaks based on typical Raman shifts for graphene
-            if 1320 <= peak_pos <= 1380:  # D peak
+            if 1250 <= peak_pos <= 1450:  # D peak
                 peak_assignments[i] = 'D'
                 print(f"D peak identified at {peak_pos:.0f} cm⁻¹ with intensity {peak_height:.3f}")
-            elif 1570 <= peak_pos <= 1620:  # G peak
+            elif 1500 <= peak_pos <= 1650:  # G peak
                 peak_assignments[i] = 'G'
                 print(f"G peak identified at {peak_pos:.0f} cm⁻¹ with intensity {peak_height:.3f}")
-            elif 2650 <= peak_pos <= 2750:  # 2D peak
+            elif 2550 <= peak_pos <= 2850:  # 2D peak
                 peak_assignments[i] = '2D'
                 print(f"2D peak identified at {peak_pos:.0f} cm⁻¹ with intensity {peak_height:.3f}")
             else:
@@ -292,10 +300,9 @@ def plot_spectrum_analysis(filepath):
 
     # Configure the layout
     fig.update_layout(
-        xaxis=dict(title='Wavenumber (cm⁻¹)', titlefont=dict(size=14)),
-        yaxis=dict(title='Intensity (a.u.)', titlefont=dict(size=14)),
-        title=title_text,
-        titlefont=dict(size=16),
+        xaxis=dict(title=dict(text='Wavenumber (cm⁻¹)', font=dict(size=14))),
+        yaxis=dict(title=dict(text='Intensity (a.u.)', font=dict(size=14))),
+        title=dict(text=title_text, font=dict(size=16)),
         legend=dict(x=0.02, y=0.98),
         width=1000,
         height=650
