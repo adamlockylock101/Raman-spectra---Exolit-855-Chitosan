@@ -20,18 +20,20 @@
 #   flagged points are as described in that paper.
 
 import numpy as np
-import pandas as pd
 from scipy.signal import savgol_filter, find_peaks, peak_widths
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-import glob
 
 def modified_z_score(ys):
     ysb = np.diff(ys)  # Differentiated intensity values
     median_y = np.median(ysb)  # Median of the intensity values
     median_absolute_deviation_y = np.median([np.abs(y - median_y) for y in ysb])  # median_absolute_deviation of the differentiated intensity values
+    if not np.isfinite(median_absolute_deviation_y) or median_absolute_deviation_y == 0:
+        # A flat or near-flat stretch has zero MAD. Dividing by it gives NaN,
+        # abs(NaN) > threshold is False, and despiking silently switches off.
+        # A constant signal has no spikes to find, so say so explicitly.
+        return np.zeros_like(ysb, dtype=float)
     modified_z_scores = [0.6745 * (y - median_y) / median_absolute_deviation_y for y in ysb]  # median_absolute_deviation modified z scores
     return modified_z_scores
 
@@ -49,12 +51,12 @@ def fixer(y, ma):
 
 def baseline_als(y, lam, p, niter=100):
     L = len(y)
-    D = sparse.diags([1, -2, 1], [0, -1, -2], shape=(L, L-2))
+    D = sparse.diags([1, -2, 1], [0, -1, -2], shape=(L, L-2), dtype=float)
     w = np.ones(L)
     for i in range(niter):
         W = sparse.spdiags(w, 0, L, L)
         Z = W + lam * D.dot(D.transpose())
-        z = spsolve(Z, w*y)
+        z = spsolve(Z.tocsc(), w*y)
         w = p * (y > z) + (1-p) * (y < z)
     return z
 

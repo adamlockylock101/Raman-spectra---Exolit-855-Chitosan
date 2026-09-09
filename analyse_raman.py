@@ -29,8 +29,11 @@ Method
     fails or wanders outside the window, the raw maximum is kept.
 5.  Ratios are peak-height ratios (the convention for ID/IG and I2D/IG in the
     LIG literature). Integrated-area ratios are reported alongside them.
-6.  Noise sigma is estimated from the residual of the baseline shoulders and
-    propagated to give an uncertainty on each ratio.
+6.  The uncertainty on each ratio comes from the Lorentzian fit covariance --
+    the fit's own estimate of how well the amplitude is pinned down by the
+    data. If the fit fails, it falls back to the (much more conservative)
+    point noise measured on the baseline shoulders. Either way it is
+    measurement uncertainty on one spot, not sample heterogeneity.
 """
 
 from __future__ import annotations
@@ -47,6 +50,10 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.signal import savgol_filter
+
+# np.trapezoid is NumPy >= 2.0; np.trapz is the pre-2.0 spelling, removed in
+# 2.x. Bind whichever this NumPy has so the script runs on either.
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 
 # --------------------------------------------------------------------------
 # Band definitions: search window, and the shoulders used to anchor baselines
@@ -156,6 +163,7 @@ class Peak:
     area: float              # baseline-corrected integrated area over the window
     fitted: bool             # True if the Lorentzian fit was used
     sigma: float             # noise level in this region
+    height_err: float        # 1-sigma uncertainty on `intensity`
 
 
 def smooth(y: np.ndarray) -> np.ndarray:
@@ -176,8 +184,14 @@ def extract_peak(x: np.ndarray, y_corr: np.ndarray, name: str,
 
     i = int(np.argmax(ys))
     pos, height = float(xw[i]), float(ys[i])
-    area = float(np.trapezoid(np.clip(yw, 0, None), xw))
+    area = float(_trapezoid(np.clip(yw, 0, None), xw))
     fwhm, fitted = None, False
+
+    # Fallback uncertainty, used only if the Lorentzian fit fails: the raw
+    # point noise. This is deliberately conservative -- the height comes from
+    # a smoothed trace, so the true uncertainty is smaller (see tests/
+    # test_uncertainty.py, which measures the coverage of both).
+    height_err = sigma
 
     # Refine with a Lorentzian over a neighbourhood ~ +/-60 cm-1 of the maximum
     nb = (xw >= pos - 60) & (xw <= pos + 60)
@@ -185,15 +199,22 @@ def extract_peak(x: np.ndarray, y_corr: np.ndarray, name: str,
         p0 = [height, pos, 25.0, 0.0]
         bounds = ([0, lo, 2.0, -abs(height)], [10 * height + 1e-9, hi, 200.0, abs(height) + 1e-9])
         try:
-            popt, _ = curve_fit(lorentzian, xw[nb], yw[nb], p0=p0,
-                                bounds=bounds, maxfev=20000)
+            popt, pcov = curve_fit(lorentzian, xw[nb], yw[nb], p0=p0,
+                                   bounds=bounds, maxfev=20000)
             amp, x0, gamma, _off = popt
             if lo <= x0 <= hi and amp > 0 and 2.0 < gamma < 200.0:
                 pos, height, fwhm, fitted = float(x0), float(amp), float(2 * gamma), True
+                # The fit's own covariance is the honest uncertainty on the
+                # amplitude: it is estimated from the residuals over every
+                # point in the fit window, so it already accounts for the
+                # averaging-down that propagating single-point noise ignores.
+                var = float(pcov[0, 0])
+                if math.isfinite(var) and var > 0:
+                    height_err = math.sqrt(var)
         except (RuntimeError, ValueError):
             pass
 
-    return Peak(name, pos, height, fwhm, area, fitted, sigma)
+    return Peak(name, pos, height, fwhm, area, fitted, sigma, height_err)
 
 
 # --------------------------------------------------------------------------
@@ -213,7 +234,8 @@ class Sample:
         """Intensity ratio and its 1-sigma uncertainty from propagated noise."""
         a, b = self.peaks[num], self.peaks[den]
         r = a.intensity / b.intensity
-        dr = abs(r) * math.hypot(a.sigma / a.intensity, b.sigma / b.intensity)
+        dr = abs(r) * math.hypot(a.height_err / a.intensity,
+                                 b.height_err / b.intensity)
         return r, dr
 
     def area_ratio(self, num: str, den: str) -> float:
@@ -332,19 +354,21 @@ def write_csv(samples: list[Sample], path: str) -> None:
         w = csv.writer(fh)
         w.writerow(["sample", "file", "band", "position_cm-1", "intensity_counts",
                     "fwhm_cm-1", "area", "lorentzian_fit", "noise_sigma",
-                    "ID/IG", "I2D/IG"])
+                    "height_err", "ID/IG", "I2D/IG"])
         for s in samples:
             rdg = f"{s.ratio('D','G')[0]:.4f}" if {"D", "G"} <= s.peaks.keys() else ""
             r2g = f"{s.ratio('2D','G')[0]:.4f}" if {"2D", "G"} <= s.peaks.keys() else ""
             for name in ("D", "G", "2D"):
                 p = s.peaks.get(name)
                 if p is None:
-                    w.writerow([s.label, s.path, name, "", "", "", "", "", "", rdg, r2g])
+                    w.writerow([s.label, s.path, name, "", "", "", "", "", "", "",
+                                rdg, r2g])
                     continue
                 w.writerow([s.label, s.path, name, f"{p.position:.2f}",
                             f"{p.intensity:.2f}",
                             f"{p.fwhm:.2f}" if p.fwhm else "",
-                            f"{p.area:.1f}", p.fitted, f"{p.sigma:.2f}", rdg, r2g])
+                            f"{p.area:.1f}", p.fitted, f"{p.sigma:.2f}",
+                            f"{p.height_err:.2f}", rdg, r2g])
 
 
 def main(argv=None) -> int:

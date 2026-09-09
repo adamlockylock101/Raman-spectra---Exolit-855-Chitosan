@@ -1,0 +1,7 @@
+sample,file,band,position_cm-1,intensity_counts,fwhm_cm-1,area,lorentzian_fit,noise_sigma,height_err,ID/IG,I2D/IG
+Ch/Ex,examples/synthetic/synthetic_chex.txt,D,1348.54,724.86,54.92,56050.3,True,28.45,6.10,0.7268,0.4706
+Ch/Ex,examples/synthetic/synthetic_chex.txt,G,1583.01,997.29,44.97,66125.8,True,28.45,3.83,0.7268,0.4706
+Ch/Ex,examples/synthetic/synthetic_chex.txt,2D,2694.83,469.36,88.49,37666.6,True,27.83,12.49,0.7268,0.4706
+Control,examples/synthetic/synthetic_control.txt,D,1352.57,1156.63,68.95,99257.4,True,28.59,8.54,1.1552,0.2809
+Control,examples/synthetic/synthetic_control.txt,G,1585.74,1001.24,52.77,73889.6,True,28.59,4.65,1.1552,0.2809
+Control,examples/synthetic/synthetic_control.txt,2D,2701.72,281.21,98.30,21797.0,True,26.08,13.04,1.1552,0.2809
