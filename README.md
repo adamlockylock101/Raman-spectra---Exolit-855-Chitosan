@@ -55,14 +55,9 @@ Output goes to `results/raman_results.md` (tables), `results/raman_results.csv`
 
 ## How I know the numbers are right
 
-This is the part I would want to see if I were reviewing someone else's
-measurement code, so it is the part that got the most attention.
-
-Every number above comes from code that pattern-matches a plausible-looking
-answer out of noisy data. Plausible is not the same as correct, and on real
-spectra there is nothing to check the answer against. So the pipeline is scored
-against spectra I built myself, from Lorentzian peaks whose heights I chose —
-where the right answer is known exactly rather than assumed:
+Real spectra don't come with answers, so the pipeline is scored against spectra
+I built myself — Lorentzian peaks of heights I chose, on a curved background,
+with noise and injected cosmic rays — where the right answer is known exactly:
 
 ```bash
 make test      # 58 tests, ~17 seconds
@@ -86,15 +81,14 @@ realisations, the quoted ±0.036 described a quantity that actually scattered by
 0.0067, and the bar covered the true value 100% of the time where a 1σ bar
 should cover ~68%. `curve_fit` had been returning the correct covariance all
 along and the code was discarding it (`popt, _ =`). Using it brings coverage to
-57–66%. The bars were too *wide*, which is the safe direction to be wrong in —
-but a number whose stated precision is fictional is not a measurement.
+57–66%. Too wide is the safe direction to be wrong in, but ±0.036 was still
+a claim that wasn't true.
 
 **The two implementations disagree, and the ground truth says which to
 believe.** This repository contains two independent analyses of the same
 quantity: a straight-line baseline plus a Lorentzian fit, and an
-asymmetric-least-squares (AsLS) baseline plus a smoothed maximum. Agreement
-would have been weak evidence that neither was badly wrong. They don't agree,
-which turned out to be far more useful. The AsLS baseline rides up underneath
+asymmetric-least-squares (AsLS) baseline plus a smoothed maximum. They don't
+agree. The AsLS baseline rides up underneath
 broad bands and subtracts part of the peak along with the background, biasing
 **every height 11–25% low**. ID/IG largely survives that (3–5% low) because D and
 G share one background and the error cancels in the ratio; I2D/IG does not
