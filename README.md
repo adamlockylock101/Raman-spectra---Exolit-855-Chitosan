@@ -6,10 +6,9 @@ signal: intensity against frequency. Three bumps in it — the **D**, **G** and
 (**ID/IG**) measures defect density; 2D over G (**I2D/IG**) indicates how many
 atomic layers thick it is.
 
-I have two samples of laser-induced graphene, one carrying a surface
-coating and one untreated control. **I need one defensible
-number saying whether the treatment changed the structure, and an honest error
-bar on it.**
+I have two samples of laser-induced graphene, one carrying a surface coating
+and one untreated control. **I need one defensible number saying whether the
+treatment changed the structure, and an honest error bar on it.**
 
 Measuring the height of a bump is not one line of code. The bumps sit on a
 large, curved, sample-dependent background — the material fluoresces under the
@@ -17,12 +16,17 @@ laser, often more brightly than it scatters. Cosmic rays hit the detector
 mid-exposure and leave spikes taller than any real peak. D and G overlap, so
 each one's tail inflates the other.
 
-![Annotated Raman spectra: raw signal with fitted baseline, and the two samples
-after background removal scaled so the G band equals 1.0](results/spectrum.png)
+![Two Raman spectra overlaid: raw signal with each sample's fitted baseline on
+top, and the same two after background removal scaled so the G band equals
+1.0](results/spectrum.png)
 
-The lower panels are scaled so the G band equals 1.0, making the y-axis read
-directly as the ratio: the control's D band reaches **1.16**, the treated
-sample's **0.73**. Fewer defects after treatment.
+The top panel is both samples as recorded. They separate vertically because
+they fluoresce very differently, which is why each needs its own baseline
+before anything can be compared. The lower panels are scaled so the G band
+equals 1.0, making the y-axis read directly as the ratio: Control's D band
+reaches **0.77**, Ch/Ex's **0.65** — a gap too small to call a result, for
+reasons set out below. The difference that is unmissable is the 2D band on the
+right: clearly present for Control, absent for Ch/Ex.
 
 ## Try it in thirty seconds
 
@@ -38,14 +42,19 @@ test suite scores the pipeline against.
 
 ## What the measurement shows
 
+Every row below uses the **peak-maximum** estimator for both samples. That is
+the only one available on both: Ch/Ex's bands are too broad for the Lorentzian
+fit to converge, so quoting fitted values for Control alongside peak-maximum
+values for Ch/Ex would compare two different measurements.
+
 | | Ch/Ex | Control |
 |---|---|---|
-| D band (defects) | 1372 cm⁻¹ | 1352 cm⁻¹ |
-| G band (intact rings) | 1586 cm⁻¹ | 1582 cm⁻¹ |
+| D band (defects) | 1373 cm⁻¹ | 1348 cm⁻¹ |
+| G band (intact rings) | 1586 cm⁻¹ | 1580 cm⁻¹ |
 | G band width (FWHM) | too broad to fit | 65 cm⁻¹ |
 | **2D band (stacked layers)** | **not detected** (3.7σ) | **present** (10.5σ), I2D/IG = 0.37 |
 | Valley between D and G | 0.48 × G height | 0.29 × G height |
-| ID/IG | 0.66 | 0.77 |
+| ID/IG | 0.65 | 0.77 |
 
 Read the three bands as three questions about the carbon. **G** asks how much
 intact ring structure is present. **D** asks how many defects and edges break
@@ -59,7 +68,7 @@ valley between D and G never drops — 0.48 × G height against Control's 0.29.
 All three say the same thing. **Ch/Ex is substantially more amorphous;
 Control retains genuine layered graphitic order.**
 
-**The ID/IG difference is not a result.** It comes out 0.66 against 0.77, which
+**The ID/IG difference is not a result.** It comes out 0.65 against 0.77, which
 looks like a clean 15% drop. But Control's own ID/IG is 0.77 by peak
 maximum and 0.69 by Lorentzian fit — an 11% swing from the choice of estimator
 alone, on one spectrum. The gap between the samples is the same size as the gap
