@@ -22,6 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
+from matplotlib.lines import Line2D
 
 import analyse_raman as ar
 
@@ -94,17 +95,25 @@ def main(argv=None) -> int:
     # What the instrument produces, and what gets subtracted.
     ax = fig.add_subplot(gs[0, :])
     style(ax)
-    label, x, y, _, _ = samples[0]
-    ax.plot(x, y, color=SERIES[0], linewidth=1.4, zorder=3,
-            label="measured spectrum")
 
-    base_dg, _ = ar.linear_baseline(x, y, "DG")
-    base_2d, _ = ar.linear_baseline(x, y, "2D")
-    for region, base, (lo, hi) in (("DG", base_dg, (1050, 1900)),
-                                   ("2D", base_2d, (2350, 3050))):
-        m = (x >= lo) & (x <= hi)
-        ax.plot(x[m], base[m], color=INK_2, linewidth=1.6, linestyle=(0, (5, 3)),
-                zorder=4, label="fitted baseline" if region == "DG" else None)
+    # Both samples on one shared axis, in raw counts. Their band heights above
+    # baseline are comparable (~730 and ~860 counts) but their backgrounds are
+    # not, so plotting them together shows how differently the two samples
+    # fluoresce -- which is the point of this panel. One y axis, never two.
+    x_lo, x_hi, y_top = 1e9, -1e9, -1e9
+    for i, (label, x, y, _peaks, _notes) in enumerate(samples):
+        ax.plot(x, y, color=SERIES[i], linewidth=1.3, zorder=3, label=label)
+        for region, (lo, hi) in (("DG", (1050, 1900)), ("2D", (2350, 3050))):
+            base, _ = ar.linear_baseline(x, y, region)
+            m = (x >= lo) & (x <= hi)
+            if not m.any():
+                continue
+            ax.plot(x[m], base[m], color=INK_2, linewidth=1.5,
+                    linestyle=(0, (5, 3)), zorder=4)
+        x_lo, x_hi = min(x_lo, x[0]), max(x_hi, x[-1])
+        vis = y[x >= 300.0]
+        if len(vis):
+            y_top = max(y_top, float(vis.max()))
 
     for name in ("D", "G", "2D"):
         lo, hi = ar.BANDS[name]["window"]
@@ -115,18 +124,26 @@ def main(argv=None) -> int:
                 transform=ax.get_xaxis_transform(), fontsize=10.5,
                 color=INK_2, fontweight="bold", zorder=6)
 
-    ax.set_xlim(max(x[0], 300.0), x[-1])
-    ax.set_ylim(top=ax.get_ylim()[1] * 1.08)
+    ax.set_xlim(max(x_lo, 300.0), x_hi)
+    ax.set_ylim(bottom=0.0, top=y_top * 1.14)
     ax.set_ylabel("Intensity (counts)", fontsize=10, color=INK_2)
     ax.set_xlabel("Raman shift (cm$^{-1}$)", fontsize=10, color=INK_2)
-    ax.set_title("1.  What the instrument measures",
+    ax.set_title("1.  What the instrument measures, both samples as recorded",
                  fontsize=11.5, color=INK, loc="left", pad=26, fontweight="bold")
-    ax.annotate("the broad slope is the sample glowing (fluorescence), not signal —\n"
-                "a straight baseline is fitted across each shaded region and subtracted",
+    ax.annotate("the broad slope under everything is the sample glowing "
+                "(fluorescence), not signal — the two samples glow by very\n"
+                "different amounts, so a straight baseline is fitted across each "
+                "shaded region, per sample, and subtracted",
                 xy=(0.0, 1.02), xycoords="axes fraction", fontsize=9.5,
                 color=INK_2, va="bottom")
-    ax.legend(loc="upper left", bbox_to_anchor=(0.60, 1.0), frameon=False,
-              fontsize=9.5, labelcolor=INK_2, handlelength=1.8)
+    # Both samples first, then the baseline, so the two traces being compared
+    # sit next to each other rather than being split by an annotation entry.
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(Line2D([], [], color=INK_2, linewidth=1.5,
+                          linestyle=(0, (5, 3))))
+    labels.append("fitted baseline")
+    ax.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.60, 1.0),
+              frameon=False, fontsize=9.5, labelcolor=INK_2, handlelength=1.8)
 
     # ------------------------------------------------------------- bottom --
     # Same data, background removed, scaled so G = 1. The y axis is the ratio.
