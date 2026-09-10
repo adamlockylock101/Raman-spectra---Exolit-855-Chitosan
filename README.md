@@ -1,32 +1,28 @@
 # Measuring how a coating changed a carbon material, from a noisy 1-D signal
 
-Fire a laser at a material and the scattered light comes back as a noisy
-one-dimensional signal: intensity against frequency. Three bumps in that signal
-— conventionally called the **D**, **G** and **2D** bands — encode how
-disordered the material's carbon structure is. The height of the D bump divided
-by the height of the G bump (**ID/IG**) is the standard measure of defect
-density; the 2D bump over the G bump (**I2D/IG**) indicates how many atomic
-layers thick it is.
+Fire a laser at a material and the scattered light comes back as a noisy 1-D
+signal: intensity against frequency. Three bumps in it — the **D**, **G** and
+**2D** bands — encode how disordered the carbon structure is. D over G
+(**ID/IG**) measures defect density; 2D over G (**I2D/IG**) indicates how many
+atomic layers thick it is.
 
-I have two samples of laser-induced graphene: one treated with a
-Ch/Ex coating, one untreated control. **I need one defensible
+I have two samples of laser-induced graphene, one treated with a
+Ch/Ex coating and one untreated control. **I need one defensible
 number saying whether the treatment changed the structure, and an honest error
 bar on it.**
 
-That turns out not to be a one-liner. The bumps sit on a large, curved,
-sample-dependent background — the material fluoresces under the laser, and the
-glow is often bigger than the signal. Cosmic rays strike the detector during the
-exposure and leave spikes taller than any real peak. The D and G bands overlap,
-so each one's tail inflates the other. "Measure the height of the peak" is
-therefore a chain of judgement calls, and each one moves the answer by several
-percent.
+Measuring the height of a bump is not one line of code. The bumps sit on a
+large, curved, sample-dependent background — the material fluoresces under the
+laser, often more brightly than it scatters. Cosmic rays hit the detector
+mid-exposure and leave spikes taller than any real peak. D and G overlap, so
+each one's tail inflates the other.
 
 ![Annotated Raman spectra: raw signal with fitted baseline, and the two samples
 after background removal scaled so the G band equals 1.0](results/spectrum.png)
 
-The lower panels are scaled so the G band equals exactly 1.0, which makes the
-y-axis read directly as the ratio: the control's D band reaches **1.16** and the
-treated sample's only **0.73**. Fewer defects after treatment.
+The lower panels are scaled so the G band equals 1.0, making the y-axis read
+directly as the ratio: the control's D band reaches **1.16**, the treated
+sample's **0.73**. Fewer defects after treatment.
 
 ## Try it in thirty seconds
 
