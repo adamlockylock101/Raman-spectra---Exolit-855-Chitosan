@@ -16,13 +16,12 @@ Outputs `results/raman_results.md` (tables) and `results/raman_results.csv`
 (machine-readable), and prints the report to stdout.
 
 Sample names are inferred from the filename — a name containing `chex`,
-`ch-ex` or `coated` is labelled treated, one containing `ctrl`, `reference` or
-`control` is labelled control, which is what drives the treated-vs-control
-delta table. Override with `--label` in file order:
+`ch-ex`, `treated` or `coated` is labelled Ch/Ex, one containing `control`,
+`ctrl` or `reference` is labelled Control, which is what drives the
+Ch/Ex-vs-Control delta table. Override with `--label` in file order:
 
 ```bash
-python3 analyse_raman.py a.txt b.txt --label "Ch/Ex" \
-                                     --label "Control"
+python3 analyse_raman.py a.txt b.txt --label "Ch/Ex" --label "Control"
 ```
 
 ## Input format

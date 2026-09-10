@@ -204,6 +204,7 @@ def extract_peak(x: np.ndarray, y_corr: np.ndarray, name: str,
 class Sample:
     label: str
     path: str
+    role: str | None = None   # "treated" | "control"; drives the delta table
     peaks: dict[str, Peak] = field(default_factory=dict)
     xrange: tuple[float, float] = (0.0, 0.0)
     npts: int = 0
@@ -220,19 +221,34 @@ class Sample:
         return self.peaks[num].area / self.peaks[den].area
 
 
+ROLE_KEYS = {
+    "treated": ("chex", "ch-ex", "treated", "coated"),
+    "control": ("control", "ctrl", "reference"),
+}
+
+ROLE_LABELS = {"treated": "Ch/Ex", "control": "Control"}
+
+
+def guess_role(path: str) -> str | None:
+    """Which side of the comparison a file is, inferred from its name."""
+    low = os.path.splitext(os.path.basename(path))[0].lower()
+    for role, keys in ROLE_KEYS.items():
+        if any(k in low for k in keys):
+            return role
+    return None
+
+
 def guess_label(path: str) -> str:
-    stem = os.path.splitext(os.path.basename(path))[0]
-    low = stem.lower()
-    if "chex" in low or "ch-ex" in low or "coated" in low:
-        return "Ch/Ex"
-    if "ctrl" in low or "control" in low or "reference" in low:
-        return "Control"
-    return stem
+    role = guess_role(path)
+    if role:
+        return ROLE_LABELS[role]
+    return os.path.splitext(os.path.basename(path))[0]
 
 
 def analyse(path: str, label: str | None = None) -> Sample:
     x, y = load_spectrum(path)
     s = Sample(label=label or guess_label(path), path=path,
+               role=guess_role(path),
                xrange=(float(x[0]), float(x[-1])), npts=len(x))
 
     baselines: dict[str, tuple[np.ndarray, float]] = {}
@@ -306,8 +322,8 @@ def ratio_table(samples: list[Sample]) -> str:
 
 def comparison(samples: list[Sample]) -> str:
     """Treated-vs-control deltas, when exactly one of each is identifiable."""
-    treated = [s for s in samples if "treated" in s.label.lower()]
-    control = [s for s in samples if "control" in s.label.lower()]
+    treated = [s for s in samples if s.role == "treated"]
+    control = [s for s in samples if s.role == "control"]
     if len(treated) != 1 or len(control) != 1:
         return ""
     t, c = treated[0], control[0]
