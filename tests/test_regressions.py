@@ -105,7 +105,7 @@ def test_plotly_figure_builds_without_raising(monkeypatch):
     supported form.
     """
     monkeypatch.setattr(RA.go.Figure, "show", lambda self, *a, **k: None)
-    path = "examples/synthetic/synthetic_treated.txt"
+    path = "examples/synthetic/synthetic_chex.txt"
     fig = RA.plot_spectrum_analysis(path)
     assert fig is not None
     assert fig.layout.title.text

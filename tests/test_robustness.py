@@ -123,9 +123,9 @@ def test_baseline_slope_does_not_change_the_ratio():
     assert id_ig(sloped) == pytest.approx(id_ig(flat), rel=0.02)
 
 
-def _sample(label, fitted_by_band):
+def _sample(label, fitted_by_band, role):
     """A Sample with controllable per-band fit status, for reporting tests."""
-    s = ar.Sample(label=label, path=f"{label}.txt")
+    s = ar.Sample(label=label, path=f"{label}.txt", role=role)
     heights = {"D": 700.0, "G": 1000.0, "2D": 400.0}
     for name, fitted in fitted_by_band.items():
         s.peaks[name] = ar.Peak(name, ar.BANDS[name]["nominal"], heights[name],
@@ -141,8 +141,8 @@ def test_comparison_refuses_to_subtract_two_different_estimators():
     different measurements; printing a tidy percentage difference between them
     invites exactly the wrong conclusion.
     """
-    treated = _sample("Treated (coating A)", {"D": False, "G": False})
-    control = _sample("Control (uncoated)", {"D": True, "G": True})
+    treated = _sample("Ch/Ex", {"D": False, "G": False}, "treated")
+    control = _sample("Control", {"D": True, "G": True}, "control")
     table = ar.comparison([treated, control])
 
     assert "not comparable" in table
@@ -152,9 +152,32 @@ def test_comparison_refuses_to_subtract_two_different_estimators():
 
 def test_comparison_reports_a_percentage_when_estimators_match():
     """The guard must not fire when both samples were measured the same way."""
-    treated = _sample("Treated (coating A)", {"D": True, "G": True})
-    control = _sample("Control (uncoated)", {"D": True, "G": True})
+    treated = _sample("Ch/Ex", {"D": True, "G": True}, "treated")
+    control = _sample("Control", {"D": True, "G": True}, "control")
     table = ar.comparison([treated, control])
 
     assert "not comparable" not in table
     assert "%" in table
+
+
+def test_renaming_a_sample_does_not_disable_the_comparison():
+    """The delta table must key off the sample's role, not its display name.
+
+    It used to filter on the literal word "treated" appearing in the label.
+    Renaming the samples for publication silently emptied the whole table --
+    no error, just a section that quietly stopped being produced.
+    """
+    treated = _sample("anything at all", {"D": True, "G": True}, "treated")
+    control = _sample("something else", {"D": True, "G": True}, "control")
+    assert ar.comparison([treated, control]).strip(), (
+        "comparison table vanished when the samples were renamed")
+
+
+@pytest.mark.parametrize("name,role", [
+    ("chex_01.txt", "treated"), ("ch-ex_2.txt", "treated"),
+    ("treated_01.txt", "treated"), ("coated_a.txt", "treated"),
+    ("control_01.txt", "control"), ("ctrl_02.txt", "control"),
+    ("reference.txt", "control"), ("sample_xyz.txt", None),
+])
+def test_role_is_inferred_from_the_filename(name, role):
+    assert ar.guess_role(name) == role

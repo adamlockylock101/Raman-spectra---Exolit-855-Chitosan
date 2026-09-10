@@ -1,7 +1,7 @@
 sample,file,band,position_cm-1,intensity_counts,fwhm_cm-1,area,lorentzian_fit,noise_sigma,height_err,ID/IG,I2D/IG
-Control (uncoated),data/control_01.txt,D,1352.25,559.74,97.76,66381.9,True,25.89,10.63,0.6937,0.4128
-Control (uncoated),data/control_01.txt,G,1581.50,806.88,65.04,67121.2,True,25.89,12.19,0.6937,0.4128
-Control (uncoated),data/control_01.txt,2D,2685.29,333.08,85.92,33801.9,True,30.52,3.51,0.6937,0.4128
-Treated (coating A),data/treated_01.txt,D,1372.71,476.67,,75668.9,False,20.83,20.83,0.6549,
-Treated (coating A),data/treated_01.txt,G,1585.66,727.86,,73696.8,False,20.83,20.83,0.6549,
-Treated (coating A),data/treated_01.txt,2D,,,,,,,,0.6549,
+Ch/Ex,data/chex_01.txt,D,1372.71,476.67,,75668.9,False,20.83,20.83,0.6549,
+Ch/Ex,data/chex_01.txt,G,1585.66,727.86,,73696.8,False,20.83,20.83,0.6549,
+Ch/Ex,data/chex_01.txt,2D,,,,,,,,0.6549,
+Control,data/control_01.txt,D,1352.25,559.74,97.76,66381.9,True,25.89,10.63,0.6937,0.4128
+Control,data/control_01.txt,G,1581.50,806.88,65.04,67121.2,True,25.89,12.19,0.6937,0.4128
+Control,data/control_01.txt,2D,2685.29,333.08,85.92,33801.9,True,30.52,3.51,0.6937,0.4128

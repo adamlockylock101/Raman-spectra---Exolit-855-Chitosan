@@ -38,7 +38,7 @@ test suite scores the pipeline against.
 
 ## What the measurement shows
 
-| | Treated | Control |
+| | Ch/Ex | Control |
 |---|---|---|
 | D band (defects) | 1372 cm⁻¹ | 1352 cm⁻¹ |
 | G band (intact rings) | 1586 cm⁻¹ | 1582 cm⁻¹ |
@@ -52,15 +52,15 @@ intact ring structure is present. **D** asks how many defects and edges break
 it up. **2D** asks whether the sheets are stacked in register — it only appears
 when the material has real layered order.
 
-**The robust result is the 2D band.** The control has an unmistakable one; the
-treated sample has nothing above noise. Everything else agrees with that
-reading: the treated sample's bands are so broad they cannot be fitted, and the
-valley between D and G never drops — 0.48 × G height against the control's
-0.29. All three say the same thing. **The treated sample is substantially more
-amorphous; the control retains genuine layered graphitic order.**
+**The robust result is the 2D band.** Control has an unmistakable one; Ch/Ex
+has nothing above noise. Everything else agrees with that
+reading: Ch/Ex's bands are so broad they cannot be fitted, and its
+valley between D and G never drops — 0.48 × G height against Control's 0.29.
+All three say the same thing. **Ch/Ex is substantially more amorphous;
+Control retains genuine layered graphitic order.**
 
 **The ID/IG difference is not a result.** It comes out 0.66 against 0.77, which
-looks like a clean 15% drop. But the control's own ID/IG is 0.77 by peak
+looks like a clean 15% drop. But Control's own ID/IG is 0.77 by peak
 maximum and 0.69 by Lorentzian fit — an 11% swing from the choice of estimator
 alone, on one spectrum. The gap between the samples is the same size as the gap
 between two defensible ways of measuring either one of them, so this data
@@ -68,7 +68,7 @@ cannot support a claim about defect density in either direction.
 
 Two things this cannot distinguish, and neither should be asserted from it:
 
-- Whether the treated **material** is more disordered, or whether the coating
+- Whether the Ch/Ex **material** is more disordered, or whether the coating
   sits on top and contributes its own broad carbon signal. Both produce this
   spectrum.
 - Whether either result is typical. This is **one spot on each sample**. Raman
@@ -159,7 +159,7 @@ comparison literature uses and say which.
   for D, ~2% for G, and up to 5% for a weak, broad 2D band. The two are
   reported separately because they behave differently, not blended into one
   reassuring number.
-- **The treated spectrum cannot be peak-fitted.** Its bands are broad enough
+- **The Ch/Ex spectrum cannot be peak-fitted.** Its bands are broad enough
   that a two-Lorentzian model rails against its own width bound, so the
   analysis rejects the fit and falls back to the peak maximum, and says so in
   the output notes. Heavily disordered carbon usually needs a 4–5 component
@@ -207,5 +207,5 @@ with `--label` in file order.
 | `make_demo_data.py` | Writes the committed example spectra |
 | `tests/` | The eval harness: recovery, robustness, calibration, regressions, cross-method |
 | `examples/synthetic/` | Two committed spectra plus `ground_truth.json` |
-| `data/` | The two measured spectra analysed above |
+| `data/` | The two measured spectra analysed above (`chex_01`, `control_01`) |
 | `CASE_STUDY.md` | How this was built with AI, and what that caught |

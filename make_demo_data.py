@@ -51,7 +51,7 @@ def main() -> int:
 
     # Treated sample: clean-ish, ascending, tab-delimited, instrument preamble.
     xt, yt = syn.make_spectrum(syn.TREATED, seed=1)
-    treated_path = os.path.join(OUTDIR, "synthetic_treated.txt")
+    treated_path = os.path.join(OUTDIR, "synthetic_chex.txt")
     write_tab_with_preamble(treated_path, xt, yt)
 
     # Control sample: descending, comma-delimited, and hit by two cosmic rays.
@@ -70,8 +70,8 @@ def main() -> int:
         "samples": {},
     }
     for name, path, bands in (
-        ("Treated (coating A)", treated_path, syn.TREATED),
-        ("Control (uncoated)", control_path, syn.CONTROL),
+        ("Ch/Ex", treated_path, syn.TREATED),
+        ("Control", control_path, syn.CONTROL),
     ):
         truth["samples"][name] = {
             "file": path.replace(os.sep, "/"),

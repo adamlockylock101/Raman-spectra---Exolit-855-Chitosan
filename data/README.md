@@ -12,8 +12,8 @@ with `--label`, given once per file in argument order:
 
 ```bash
 python3 analyse_raman.py a.txt b.txt \
-    --label "Treated (coating A)" \
-    --label "Control (uncoated)"
+    --label "Ch/Ex" \
+    --label "Control"
 ```
 
 This directory is empty in the repository. Runnable example spectra — with

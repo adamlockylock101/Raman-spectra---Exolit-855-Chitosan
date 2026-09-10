@@ -4,19 +4,19 @@
 
 | Sample | Band | Position (cm-1) | Shift vs nominal | Intensity (counts) | FWHM (cm-1) | Area |
 |---|---|---|---|---|---|---|
-| Control (uncoated) | D | 1352.2 | +2.2 | 559.7 | 97.8 | 66,382 |
-| Control (uncoated) | G | 1581.5 | +1.5 | 806.9 | 65.0 | 67,121 |
-| Control (uncoated) | 2D | 2685.3 | -14.7 | 333.1 | 85.9 | 33,802 |
-| Treated (coating A) | D | 1372.7 | +22.7 | 476.7 | n/a | 75,669 |
-| Treated (coating A) | G | 1585.7 | +5.7 | 727.9 | n/a | 73,697 |
-| Treated (coating A) | 2D | not detected | - | - | - | - |
+| Ch/Ex | D | 1372.7 | +22.7 | 476.7 | n/a | 75,669 |
+| Ch/Ex | G | 1585.7 | +5.7 | 727.9 | n/a | 73,697 |
+| Ch/Ex | 2D | not detected | - | - | - | - |
+| Control | D | 1352.2 | +2.2 | 559.7 | 97.8 | 66,382 |
+| Control | G | 1581.5 | +1.5 | 806.9 | 65.0 | 67,121 |
+| Control | 2D | 2685.3 | -14.7 | 333.1 | 85.9 | 33,802 |
 
 ## Intensity ratios
 
 | Sample | ID/IG | I2D/IG | ID/IG (area) | I2D/IG (area) |
 |---|---|---|---|---|
-| Control (uncoated) | 0.694 ± 0.017 | 0.413 ± 0.008 | 0.989 | 0.504 |
-| Treated (coating A) | 0.655 ± 0.034 | n/a | 1.027 | n/a |
+| Ch/Ex | 0.655 ± 0.034 | n/a | 1.027 | n/a |
+| Control | 0.694 ± 0.017 | 0.413 ± 0.008 | 0.989 | 0.504 |
 
 ## Treated vs control
 
@@ -30,8 +30,8 @@
 
 ## Spectra analysed
 
-- **Control (uncoated)** - `data/control_01.txt`, 1938 points, 1-3000 cm-1
-- **Treated (coating A)** - `data/treated_01.txt`, 7060 points, 3-3000 cm-1
+- **Ch/Ex** - `data/chex_01.txt`, 7060 points, 3-3000 cm-1
   - note: D band: Lorentzian fit rejected as implausible, height taken from the smoothed maximum instead
   - note: G band: Lorentzian fit rejected as implausible, height taken from the smoothed maximum instead
   - note: 2D band not detected - peak stands only 3.7 sigma above the noise, below the 5 sigma threshold
+- **Control** - `data/control_01.txt`, 1938 points, 1-3000 cm-1
