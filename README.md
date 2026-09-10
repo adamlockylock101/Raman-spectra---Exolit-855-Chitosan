@@ -6,8 +6,8 @@ signal: intensity against frequency. Three bumps in it — the **D**, **G** and
 (**ID/IG**) measures defect density; 2D over G (**I2D/IG**) indicates how many
 atomic layers thick it is.
 
-I have two samples of laser-induced graphene, one treated with a
-Ch/Ex coating and one untreated control. **I need one defensible
+I have two samples of laser-induced graphene, one carrying a surface
+coating and one untreated control. **I need one defensible
 number saying whether the treatment changed the structure, and an honest error
 bar on it.**
 
@@ -28,26 +28,56 @@ sample's **0.73**. Fewer defects after treatment.
 
 ```bash
 pip install -r requirements.txt
-python3 analyse_raman.py examples/synthetic/*.txt --outdir results
+python3 analyse_raman.py            # analyses the two measured spectra in data/
 ```
 
-Two example spectra are committed, so this produces real output on a fresh
-clone with nothing else to set up. `make demo`, `make figure` and `make test`
-are shorthands for the same commands.
+Two measured spectra are committed, so this produces real output on a fresh
+clone. `make demo`, `make figure` and `make test` are shorthands. Synthetic
+spectra with known ground truth live in `examples/synthetic/` and are what the
+test suite scores the pipeline against.
 
-To analyse your own data, drop two-column `.txt` files into `data/` and run
-`python3 analyse_raman.py`. The loader auto-detects the delimiter, skips
-instrument preamble blocks, ignores extra columns and handles descending
-wavenumber order — the two committed examples are deliberately written in
-different awkward formats to exercise exactly that.
+## What the measurement shows
 
-Output goes to `results/raman_results.md` (tables), `results/raman_results.csv`
-(machine-readable) and stdout:
+| | Treated | Control |
+|---|---|---|
+| D band (defects) | 1372 cm⁻¹ | 1352 cm⁻¹ |
+| G band (intact rings) | 1586 cm⁻¹ | 1582 cm⁻¹ |
+| G band width (FWHM) | too broad to fit | 65 cm⁻¹ |
+| **2D band (stacked layers)** | **not detected** (3.7σ) | **present** (10.5σ), I2D/IG = 0.37 |
+| Valley between D and G | 0.48 × G height | 0.29 × G height |
+| ID/IG | 0.66 | 0.77 |
 
-| Metric | Treated | Control | Δ | % change |
-|---|---|---|---|---|
-| ID/IG | 0.727 | 1.155 | −0.428 | −37.1% |
-| I2D/IG | 0.471 | 0.281 | +0.190 | +67.6% |
+Read the three bands as three questions about the carbon. **G** asks how much
+intact ring structure is present. **D** asks how many defects and edges break
+it up. **2D** asks whether the sheets are stacked in register — it only appears
+when the material has real layered order.
+
+**The robust result is the 2D band.** The control has an unmistakable one; the
+treated sample has nothing above noise. Everything else agrees with that
+reading: the treated sample's bands are so broad they cannot be fitted, and the
+valley between D and G never drops — 0.48 × G height against the control's
+0.29. All three say the same thing. **The treated sample is substantially more
+amorphous; the control retains genuine layered graphitic order.**
+
+**The ID/IG difference is not a result.** It comes out 0.66 against 0.77, which
+looks like a clean 15% drop. But the control's own ID/IG is 0.77 by peak
+maximum and 0.69 by Lorentzian fit — an 11% swing from the choice of estimator
+alone, on one spectrum. The gap between the samples is the same size as the gap
+between two defensible ways of measuring either one of them, so this data
+cannot support a claim about defect density in either direction.
+
+Two things this cannot distinguish, and neither should be asserted from it:
+
+- Whether the treated **material** is more disordered, or whether the coating
+  sits on top and contributes its own broad carbon signal. Both produce this
+  spectrum.
+- Whether either result is typical. This is **one spot on each sample**. Raman
+  spot-to-spot variation across a real sample is routinely larger than the
+  difference measured here, so several spots per sample are needed before any
+  of this generalises.
+
+What is safe to say: *these two spectra differ in a large and consistent way,
+and the difference is in structural order rather than in defect count.*
 
 ## How I know the numbers are right
 
@@ -120,19 +150,25 @@ comparison literature uses and say which.
 
 ## Honest limitations
 
-- **Both ratios come from a single spot on each sample.** The ± here is
-  measurement uncertainty on one spectrum. Real spot-to-spot heterogeneity
-  across a sample is typically much larger. A claim about the treatment needs
-  several spots per sample and a comparison of the spreads — this tool measures
-  one spectrum well, it does not establish an effect on its own.
-- **The demo data is synthetic.** The numbers in the table above are recovered
-  from spectra I generated, not from experimental measurements. That is
-  deliberate: it makes the repository self-contained and the ground truth exact.
-  Real spectra go in `data/` and are analysed by the same code path.
-- **A straight-line baseline is an approximation.** It leaves a small residual
-  bias where the true fluorescence background is curved, which is why the I2D/IG
-  tolerance (8%) is looser than the ID/IG one (3%). The tolerances are measured,
-  not chosen.
+- **One spot per sample.** The ± is measurement uncertainty on a single
+  spectrum. Spot-to-spot variation across a real sample is routinely larger.
+  This tool measures one spectrum carefully; it does not establish an effect.
+- **The quoted ± is statistical only.** It describes noise, which averages down
+  over repeated measurements. The straight-line baseline adds a systematic on
+  top that does not — measured on synthetic spectra at under 1% of band height
+  for D, ~2% for G, and up to 5% for a weak, broad 2D band. The two are
+  reported separately because they behave differently, not blended into one
+  reassuring number.
+- **The treated spectrum cannot be peak-fitted.** Its bands are broad enough
+  that a two-Lorentzian model rails against its own width bound, so the
+  analysis rejects the fit and falls back to the peak maximum, and says so in
+  the output notes. Heavily disordered carbon usually needs a 4–5 component
+  model; choosing those components is a modelling decision this tool
+  deliberately does not make on the user's behalf.
+- **Ground truth is synthetic, and only synthetic.** Real spectra have no known
+  answer, so the test suite scores the pipeline entirely against generated
+  spectra. That validates the extraction maths; it does not validate that the
+  band-assignment windows suit any particular material.
 
 ## Method
 
@@ -155,8 +191,8 @@ outside the window. Uncertainty on each height is the Lorentzian fit covariance,
 falling back to shoulder noise if the fit fails. Bands outside the measured
 range are reported as "not detected" rather than guessed at.
 
-Sample names are inferred from the filename — one containing `chex`,
-`ch-ex` or `coated` is labelled treated; one containing `ctrl`, `reference` or `control`
+Sample names are inferred from the filename — one containing `treated` or
+`coated` is labelled treated; one containing `control`, `ctrl` or `reference`
 is labelled control. That is what drives the treated-vs-control table. Override
 with `--label` in file order.
 
@@ -171,5 +207,5 @@ with `--label` in file order.
 | `make_demo_data.py` | Writes the committed example spectra |
 | `tests/` | The eval harness: recovery, robustness, calibration, regressions, cross-method |
 | `examples/synthetic/` | Two committed spectra plus `ground_truth.json` |
-| `data/` | Where real spectra go |
+| `data/` | The two measured spectra analysed above |
 | `CASE_STUDY.md` | How this was built with AI, and what that caught |

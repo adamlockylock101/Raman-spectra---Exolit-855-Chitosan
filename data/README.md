@@ -5,15 +5,15 @@ directory. The loader auto-detects the delimiter (tab, comma, semicolon or
 whitespace), skips comment and instrument-preamble lines, ignores columns beyond
 the first two, and handles descending wavenumber order.
 
-Filenames containing `chex`, `ch-ex` or `coated` are auto-labelled as the
-treated sample; those containing `ctrl`, `reference` or `control` as the control. That
+Filenames containing `treated` or `coated` are auto-labelled as the treated
+sample; those containing `control`, `ctrl` or `reference` as the control. That
 labelling is what produces the treated-vs-control comparison table. Override it
 with `--label`, given once per file in argument order:
 
 ```bash
 python3 analyse_raman.py a.txt b.txt \
-    --label "Ch/Ex" \
-    --label "Control"
+    --label "Treated (coating A)" \
+    --label "Control (uncoated)"
 ```
 
 This directory is empty in the repository. Runnable example spectra — with

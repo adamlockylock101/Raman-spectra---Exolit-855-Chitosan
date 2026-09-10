@@ -71,6 +71,20 @@ REGIONS = {
     "2D": {"left": (2350.0, 2500.0), "right": (2900.0, 3050.0)},
 }
 
+# The span the D and G bands are fitted over, together. It reaches from the end
+# of the left baseline shoulder to the start of the right one.
+DG_SPAN = (1180.0, 1750.0)
+
+# A real Raman band in this system is tens of wavenumbers wide. Anything
+# narrower is a noise spike or a cosmic ray, not a band.
+MIN_FWHM = 15.0        # cm^-1
+MAX_FWHM = 300.0       # cm^-1
+
+# A band must stand this many noise sigma above the baseline to be reported at
+# all. Below it, "not detected" is the honest answer -- fitting a Lorentzian to
+# noise always succeeds and always returns a number.
+DETECT_SNR = 5.0
+
 
 # --------------------------------------------------------------------------
 # Loading
@@ -154,6 +168,13 @@ def lorentzian(x, amp, x0, gamma, offset):
     return offset + amp * (gamma ** 2) / ((x - x0) ** 2 + gamma ** 2)
 
 
+def two_lorentzians(x, a1, x1, g1, a2, x2, g2, offset):
+    """D and G as one model, sharing a single residual-background constant."""
+    return (offset
+            + a1 * g1 ** 2 / ((x - x1) ** 2 + g1 ** 2)
+            + a2 * g2 ** 2 / ((x - x2) ** 2 + g2 ** 2))
+
+
 @dataclass
 class Peak:
     name: str
@@ -173,6 +194,107 @@ def smooth(y: np.ndarray) -> np.ndarray:
     return savgol_filter(y, win, 3)
 
 
+def observed_max(x: np.ndarray, y_corr: np.ndarray, name: str
+                 ) -> tuple[float, float]:
+    """Smoothed maximum inside a band window: (position, height)."""
+    lo, hi = BANDS[name]["window"]
+    m = (x >= lo) & (x <= hi)
+    if m.sum() < 5:
+        raise ValueError(f"band {name}: window {lo}-{hi} cm-1 not covered by the data")
+    xw, ys = x[m], smooth(y_corr[m])
+    i = int(np.argmax(ys))
+    return float(xw[i]), float(ys[i])
+
+
+def band_area(x: np.ndarray, y_corr: np.ndarray, name: str) -> float:
+    lo, hi = BANDS[name]["window"]
+    m = (x >= lo) & (x <= hi)
+    return float(_trapezoid(np.clip(y_corr[m], 0, None), x[m]))
+
+
+def at_bounds(popt, bounds, rtol: float = 1e-3) -> list[int]:
+    """Indices of fitted parameters sitting on their own bound.
+
+    A parameter pinned to a bound is not a measurement -- the optimiser wanted
+    to go further and was not allowed to. The value it reports is the bound,
+    not the data, so a fit with any railed parameter is rejected.
+    """
+    railed = []
+    for i, (v, lo, hi) in enumerate(zip(popt, bounds[0], bounds[1])):
+        span = abs(hi - lo) or 1.0
+        if abs(v - lo) <= rtol * span or abs(v - hi) <= rtol * span:
+            railed.append(i)
+    return railed
+
+
+def plausible(height: float, fwhm: float, obs_height: float) -> bool:
+    """Is a fitted band physically believable, given what is in the data?
+
+    Three ways a fit lies. It returns a height above the baseline larger than
+    the largest value actually measured in the window (impossible). It returns
+    a width narrower than any real band (it found a noise spike). Or it
+    collapses to nothing. Any of these means fall back to the raw maximum.
+    """
+    if not (math.isfinite(height) and math.isfinite(fwhm)):
+        return False
+    if not (MIN_FWHM <= fwhm <= MAX_FWHM):
+        return False
+    return 0.0 < height <= 1.25 * obs_height
+
+
+def fit_dg(x: np.ndarray, y_corr: np.ndarray, sigma: float) -> dict[str, Peak]:
+    """Fit the D and G bands simultaneously.
+
+    Fitting them one at a time, each with its own free offset, is degenerate
+    whenever they overlap: the offset slides down to absorb the neighbour's
+    tail and the amplitude climbs to compensate. On a disordered sample the
+    valley between D and G never reaches the baseline, and a single-band fit
+    then returns a D/G height ratio that is simply wrong -- in one measured
+    spectrum it put the G height 60% above the largest value in the window.
+    One model, two bands, one shared constant.
+    """
+    peaks: dict[str, Peak] = {}
+    obs = {n: observed_max(x, y_corr, n) for n in ("D", "G")}
+    areas = {n: band_area(x, y_corr, n) for n in ("D", "G")}
+
+    lo, hi = DG_SPAN
+    m = (x >= lo) & (x <= hi)
+    xw, yw = x[m], y_corr[m]
+
+    fitted: dict[str, tuple] = {}
+    if m.sum() >= 12 and all(h > 0 for _, h in obs.values()):
+        (dpos, dh), (gpos, gh) = obs["D"], obs["G"]
+        p0 = [dh, dpos, 30.0, gh, gpos, 30.0, 0.0]
+        big = 3.0 * max(dh, gh)
+        bounds = (
+            [0.0, *BANDS["D"]["window"][:1], MIN_FWHM / 2,
+             0.0, *BANDS["G"]["window"][:1], MIN_FWHM / 2, -big],
+            [big, BANDS["D"]["window"][1], MAX_FWHM / 2,
+             big, BANDS["G"]["window"][1], MAX_FWHM / 2, big],
+        )
+        try:
+            popt, pcov = curve_fit(two_lorentzians, xw, yw, p0=p0,
+                                   bounds=bounds, maxfev=40000)
+            if not at_bounds(popt, bounds):
+                err = np.sqrt(np.diag(pcov))
+                fitted["D"] = (popt[0], popt[1], 2 * popt[2], err[0])
+                fitted["G"] = (popt[3], popt[4], 2 * popt[5], err[3])
+        except (RuntimeError, ValueError):
+            pass
+
+    for name in ("D", "G"):
+        pos, obs_h = obs[name]
+        height, fwhm, ok, herr = obs_h, None, False, sigma
+        if name in fitted:
+            amp, centre, width, amp_err = fitted[name]
+            if plausible(amp, width, obs_h):
+                height, pos, fwhm, ok = float(amp), float(centre), float(width), True
+                if math.isfinite(amp_err) and amp_err > 0:
+                    herr = float(amp_err)
+        peaks[name] = Peak(name, pos, height, fwhm, areas[name], ok, sigma, herr)
+    return peaks
+
+
 def extract_peak(x: np.ndarray, y_corr: np.ndarray, name: str,
                  sigma: float) -> Peak:
     lo, hi = BANDS[name]["window"]
@@ -182,27 +304,33 @@ def extract_peak(x: np.ndarray, y_corr: np.ndarray, name: str,
     xw, yw = x[m], y_corr[m]
     ys = smooth(yw)
 
-    i = int(np.argmax(ys))
-    pos, height = float(xw[i]), float(ys[i])
-    area = float(_trapezoid(np.clip(yw, 0, None), xw))
+    pos, height = observed_max(x, y_corr, name)
+    obs_h = height
+    area = band_area(x, y_corr, name)
     fwhm, fitted = None, False
 
-    # Fallback uncertainty, used only if the Lorentzian fit fails: the raw
-    # point noise. This is deliberately conservative -- the height comes from
-    # a smoothed trace, so the true uncertainty is smaller (see tests/
-    # test_uncertainty.py, which measures the coverage of both).
+    # Fallback uncertainty, used only if the Lorentzian fit fails or is
+    # rejected: the raw point noise. Deliberately conservative -- the height
+    # comes from a smoothed trace, so the true uncertainty is smaller (see
+    # tests/test_uncertainty.py, which measures the coverage of both).
     height_err = sigma
 
-    # Refine with a Lorentzian over a neighbourhood ~ +/-60 cm-1 of the maximum
-    nb = (xw >= pos - 60) & (xw <= pos + 60)
+    # Refine with a Lorentzian. The neighbourhood scales with the band, since
+    # a fixed window narrower than the FWHM cannot constrain a broad band.
+    half = [i for i, v in enumerate(ys) if v >= height / 2.0]
+    est_fwhm = float(xw[half[-1]] - xw[half[0]]) if len(half) >= 2 else 50.0
+    span = float(np.clip(1.5 * est_fwhm, 60.0, 200.0))
+    nb = (xw >= pos - span) & (xw <= pos + span)
     if nb.sum() >= 6 and height > 0:
         p0 = [height, pos, 25.0, 0.0]
-        bounds = ([0, lo, 2.0, -abs(height)], [10 * height + 1e-9, hi, 200.0, abs(height) + 1e-9])
+        bounds = ([0, lo, MIN_FWHM / 2, -abs(height)],
+                  [10 * height + 1e-9, hi, MAX_FWHM / 2, abs(height) + 1e-9])
         try:
             popt, pcov = curve_fit(lorentzian, xw[nb], yw[nb], p0=p0,
                                    bounds=bounds, maxfev=20000)
             amp, x0, gamma, _off = popt
-            if lo <= x0 <= hi and amp > 0 and 2.0 < gamma < 200.0:
+            if (lo <= x0 <= hi and plausible(amp, 2 * gamma, obs_h)
+                    and not at_bounds(popt, bounds)):
                 pos, height, fwhm, fitted = float(x0), float(amp), float(2 * gamma), True
                 # The fit's own covariance is the honest uncertainty on the
                 # amplitude: it is estimated from the residuals over every
@@ -245,10 +373,10 @@ class Sample:
 def guess_label(path: str) -> str:
     stem = os.path.splitext(os.path.basename(path))[0]
     low = stem.lower()
-    if "chex" in low or "ch-ex" in low or "coated" in low:
-        return "Ch/Ex"
-    if "ctrl" in low or "control" in low or "reference" in low:
-        return "Control"
+    if "treated" in low or "coated" in low:
+        return "Treated (coating A)"
+    if "control" in low or "ctrl" in low or "reference" in low:
+        return "Control (uncoated)"
     return stem
 
 
@@ -261,9 +389,8 @@ def analyse(path: str, label: str | None = None) -> Sample:
     for region in ("DG", "2D"):
         baselines[region] = linear_baseline(x, y, region)
 
+    covered = []
     for name, spec in BANDS.items():
-        region = spec["region"]
-        base, sigma = baselines[region]
         lo, hi = spec["window"]
         if x[0] > lo or x[-1] < hi:
             s.notes.append(
@@ -272,7 +399,37 @@ def analyse(path: str, label: str | None = None) -> Sample:
             if x[-1] < lo or x[0] > hi:
                 s.notes.append(f"{name} band absent from the measured range - skipped")
                 continue
-        s.peaks[name] = extract_peak(x, y - base, name, sigma)
+        covered.append(name)
+
+    found: dict[str, Peak] = {}
+    if {"D", "G"} <= set(covered):
+        base, sigma = baselines["DG"]
+        found.update(fit_dg(x, y - base, sigma))
+    else:
+        for name in covered:
+            if BANDS[name]["region"] == "DG":
+                base, sigma = baselines["DG"]
+                found[name] = extract_peak(x, y - base, name, sigma)
+    if "2D" in covered:
+        base, sigma = baselines["2D"]
+        found["2D"] = extract_peak(x, y - base, "2D", sigma)
+
+    # Detection gate. Fitting a Lorentzian to noise always succeeds and always
+    # returns a number; a band that does not stand clear of the noise has to be
+    # reported as absent instead, or the ratio is invented rather than measured.
+    for name, peak in found.items():
+        _, obs_h = observed_max(x, y - baselines[BANDS[name]["region"]][0], name)
+        snr = obs_h / peak.sigma if peak.sigma > 0 else float("inf")
+        if snr < DETECT_SNR:
+            s.notes.append(
+                f"{name} band not detected - peak stands only {snr:.1f} sigma above "
+                f"the noise, below the {DETECT_SNR:.0f} sigma threshold")
+            continue
+        if not peak.fitted:
+            s.notes.append(
+                f"{name} band: Lorentzian fit rejected as implausible, "
+                f"height taken from the smoothed maximum instead")
+        s.peaks[name] = peak
 
     for region, (lo_hi) in REGIONS.items():
         for side, (a, b) in lo_hi.items():

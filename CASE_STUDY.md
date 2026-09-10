@@ -71,6 +71,43 @@ because the 2D band sits in a different region. Its I2D/IG also moves from 0.361
 to 0.451 — true value 0.480 — on the hand-set `lam` parameter alone. Neither
 reading the code nor comparing against real data would have shown this.
 
+## Round 4 — real spectra
+
+Then the actual measurements arrived, and broke it in a way the synthetic
+harness never could.
+
+On the treated spectrum the analysis returned a **G height of 1185 counts when
+the largest value anywhere in that window was 741**. A peak height above the
+baseline cannot exceed the data it was fitted to; the number was impossible on
+its face. The cause was a degeneracy: each band was fitted separately with its
+own free offset, and where D and G overlap, the offset slid to −477 so the
+amplitude could climb to 1185. Only their sum was ever meaningful. My synthetic
+spectra had a clean valley between D and G, so the two parameters never became
+degenerate and the bug could not appear.
+
+Fixing it meant fitting D and G as one model with one shared constant. That
+exposed two more gaps, both of the same kind — the code had no way to say "I
+don't know":
+
+- **No detection threshold.** Fitting a Lorentzian to noise always succeeds and
+  always returns a number. The treated sample's 2D band stands 3.7σ above the
+  noise; the original code reported it as a band with a 6.5 cm⁻¹ width, which
+  is a noise spike, not a Raman band. It is now reported as not detected.
+- **No check for a railed fit.** A parameter pinned to its own bound is the
+  optimiser saying it wanted to go further and was not allowed to; the value
+  returned is the bound, not the measurement. Those fits are now rejected and
+  the analysis falls back to the peak maximum, with a note saying so.
+
+Fixing the uncertainty then caused a regression that the harness caught
+immediately: with the statistical error correctly small, the baseline
+systematic dominated and coverage of the true value fell to 6%. Noise and bias
+are different quantities and are now reported separately.
+
+The reason this round matters is that **real data found a class of bug the
+ground truth could not**. Synthetic spectra test the maths against a known
+answer; they only contain the pathologies you thought to put in them. Neither
+kind of testing substitutes for the other.
+
 ## What I'd carry over
 
 - AI is fastest where I'm slowest: reading unfamiliar code adversarially, and
@@ -80,7 +117,12 @@ reading the code nor comparing against real data would have shown this.
   wrote and I had already reviewed.
 - "It runs and the figure looks right" was true of the original for its entire
   working life, with dead despiking code in it.
-- Scope was mine to set, and the two calls I'm most confident about are both
-  refusals.
+- Scope was mine to set, and the calls I'm most confident about are refusals:
+  crediting the published algorithms, declining to rewrite an unvalidated
+  baseline, and declining to report an ID/IG difference the data cannot
+  support.
+- Synthetic ground truth and real data catch different bugs. The harness found
+  a mis-calibrated error bar; the real spectra found an impossible peak height.
+  Neither would have found the other.
 
 `git log` records the verification for each change.

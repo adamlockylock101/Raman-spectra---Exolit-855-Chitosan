@@ -317,4 +317,4 @@ def plot_spectrum_analysis(filepath):
 
 # Example usage:
 # Uncomment the line below to run the analysis
-# fig = plot_spectrum_analysis("/content/control_01.txt")
+# fig = plot_spectrum_analysis("data/control_01.txt")
