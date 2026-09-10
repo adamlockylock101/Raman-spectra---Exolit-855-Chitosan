@@ -1,4 +1,4 @@
-# Raman analysis — LIG on Ch/Ex vs Control
+# Raman analysis — LIG on CH/Ex vs Control
 
 `analyse_raman.py` extracts the D, G and 2D bands from two-column Raman
 spectra and reports the ID/IG and I2D/IG intensity ratios as a comparison
