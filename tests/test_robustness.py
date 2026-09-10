@@ -121,3 +121,40 @@ def test_baseline_slope_does_not_change_the_ratio():
         return h["D"] / h["G"]
 
     assert id_ig(sloped) == pytest.approx(id_ig(flat), rel=0.02)
+
+
+def _sample(label, fitted_by_band):
+    """A Sample with controllable per-band fit status, for reporting tests."""
+    s = ar.Sample(label=label, path=f"{label}.txt")
+    heights = {"D": 700.0, "G": 1000.0, "2D": 400.0}
+    for name, fitted in fitted_by_band.items():
+        s.peaks[name] = ar.Peak(name, ar.BANDS[name]["nominal"], heights[name],
+                                50.0, 1000.0, fitted, 10.0, 5.0)
+    return s
+
+
+def test_comparison_refuses_to_subtract_two_different_estimators():
+    """A ratio fitted on one sample and peak-picked on the other is not a delta.
+
+    When the Lorentzian fit is rejected for one sample, its ID/IG comes from
+    the peak maximum while the other sample's comes from the fit. Those are
+    different measurements; printing a tidy percentage difference between them
+    invites exactly the wrong conclusion.
+    """
+    treated = _sample("Treated (coating A)", {"D": False, "G": False})
+    control = _sample("Control (uncoated)", {"D": True, "G": True})
+    table = ar.comparison([treated, control])
+
+    assert "not comparable" in table
+    assert "%" not in table.split("\\*")[0].split("| ID/IG")[1].split("\n")[0]
+    assert "different measurements" in table
+
+
+def test_comparison_reports_a_percentage_when_estimators_match():
+    """The guard must not fire when both samples were measured the same way."""
+    treated = _sample("Treated (coating A)", {"D": True, "G": True})
+    control = _sample("Control (uncoated)", {"D": True, "G": True})
+    table = ar.comparison([treated, control])
+
+    assert "not comparable" not in table
+    assert "%" in table

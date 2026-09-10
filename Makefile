@@ -1,11 +1,12 @@
 # Convenience targets. Every one of these is a single plain command -- see the
 # README if you would rather run them directly.
 
-.PHONY: help install demo figure test all clean
+.PHONY: help install demo demo-synthetic figure test all clean
 
 help:
 	@echo "make install  - install dependencies"
-	@echo "make demo     - analyse the committed example spectra, print the tables"
+	@echo "make demo     - analyse the measured spectra in data/, print the tables"
+	@echo "make demo-synthetic - same, on the synthetic pair with known answers"
 	@echo "make figure   - render the annotated figure used in the README"
 	@echo "make test     - run the ground-truth eval harness"
 	@echo "make all      - demo + figure + test"
@@ -14,7 +15,10 @@ install:
 	pip install -r requirements.txt
 
 demo:
-	python3 analyse_raman.py examples/synthetic/*.txt --outdir results
+	python3 analyse_raman.py --outdir results
+
+demo-synthetic:
+	python3 analyse_raman.py examples/synthetic/*.txt --outdir /tmp/raman-synthetic
 
 figure:
 	python3 plot_spectrum.py --out results/spectrum.png

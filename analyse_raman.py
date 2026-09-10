@@ -492,17 +492,33 @@ def comparison(samples: list[Sample]) -> str:
     t, c = treated[0], control[0]
     out = ["| Metric | Treated | Control | Δ (treated − control) | % change |",
            "|---|---|---|---|---|"]
+    mixed = []
     for label, num, den in (("ID/IG", "D", "G"), ("I2D/IG", "2D", "G")):
         if not all(k in t.peaks and k in c.peaks for k in (num, den)):
             continue
         rt, _ = t.ratio(num, den)
         rc, _ = c.ratio(num, den)
         pct = (rt - rc) / rc * 100 if rc else float("nan")
-        out.append(f"| {label} | {rt:.3f} | {rc:.3f} | {rt - rc:+.3f} | {pct:+.1f}% |")
+        # A ratio measured by Lorentzian fit on one sample and by peak maximum
+        # on the other is two different measurements; their difference is not
+        # a result. Flag it rather than printing a clean-looking percentage.
+        if any(t.peaks[k].fitted != c.peaks[k].fitted for k in (num, den)):
+            mixed.append(label)
+            out.append(f"| {label} | {rt:.3f} | {rc:.3f} | {rt - rc:+.3f} | "
+                       f"not comparable * |")
+        else:
+            out.append(f"| {label} | {rt:.3f} | {rc:.3f} | {rt - rc:+.3f} | {pct:+.1f}% |")
     for name in ("D", "G", "2D"):
         if name in t.peaks and name in c.peaks:
             pt, pc = t.peaks[name].position, c.peaks[name].position
             out.append(f"| {name} position (cm-1) | {pt:.1f} | {pc:.1f} | {pt - pc:+.1f} | - |")
+    if mixed:
+        out += ["",
+                f"\\* {', '.join(mixed)} was measured by Lorentzian fit on one "
+                "sample and by peak maximum on the other, because the fit was "
+                "rejected for the other. Those are different measurements, so "
+                "the difference between them is not a result. Compare the "
+                "samples using a single estimator instead."]
     return "\n".join(out)
 
 
